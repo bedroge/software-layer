@@ -34,6 +34,7 @@ def det_host_triple():
     <cpu_vendor> may be None if there's no match in VENDOR_MAP.
     """
     host_cpu = archspec.cpu.host()
+    print(host_cpu, host_cpu.vendor, host_cpu.family.name, host_cpu.name)
     host_vendor = VENDOR_MAP.get(host_cpu.vendor)
     host_cpu_family = host_cpu.family.name
     host_cpu_name = host_cpu.name

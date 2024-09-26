@@ -16,23 +16,20 @@ jobs:
       matrix:
         EESSI_VERSION:
         - 2023.06
-        EESSI_TARGETS:
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: aarch64/generic
-          EESSI_ACCELERATOR_TARGET: [None]
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: aarch64/neoverse_n1
-          EESSI_ACCELERATOR_TARGET: [None]
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: aarch64/neoverse_v1
-          EESSI_ACCELERATOR_TARGET: [None]
+        EESSI_SOFTWARE_SUBDIR_OVERRIDE:
+        - aarch64/generic
+        - aarch64/neoverse_n1
+        - aarch64/neoverse_v1
+        - x86_64/amd/zen2
+        - x86_64/amd/zen3
+        - x86_64/intel/haswell
+        - x86_64/intel/skylake_avx512
+        - x86_64/generic
+        include:
         - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen2
-          EESSI_ACCELERATOR_TARGET: [None, nvidia/cc80]
+          EESSI_ACCELERATOR_TARGET: nvidia/cc80
         - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen3
-          EESSI_ACCELERATOR_TARGET: [None, nvidia/cc80]
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/intel/haswell
-          EESSI_ACCELERATOR_TARGET: [None]
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/intel/skylake_avx512
-          EESSI_ACCELERATOR_TARGET: [None]
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/generic
-          EESSI_ACCELERATOR_TARGET: [None]
+          EESSI_ACCELERATOR_TARGET: nvidia/cc80
     steps:
         - name: Check out software-layer repository
           uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1

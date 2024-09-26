@@ -25,7 +25,8 @@ jobs:
         - x86_64/intel/haswell
         - x86_64/intel/skylake_avx512
         - x86_64/generic
-        EESSI_ACCELERATOR_TARGET: None
+        EESSI_ACCELERATOR_TARGET:
+        - None
         include:
         - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen2
           EESSI_ACCELERATOR_TARGET: nvidia/cc80

@@ -25,6 +25,7 @@ jobs:
         - x86_64/intel/haswell
         - x86_64/intel/skylake_avx512
         - x86_64/generic
+        EESSI_ACCELERATOR_TARGET: None
         include:
         - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen2
           EESSI_ACCELERATOR_TARGET: nvidia/cc80
@@ -47,7 +48,7 @@ jobs:
               export EESSI_ACCELERATOR_TARGET=${{matrix.EESSI_ACCELERATOR_TARGET}}
               source /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/init/bash
               easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml
-              if [ ! -z ${EESSI_ACCELERATOR_TARGET} ]; then
+              if [ ! -z ${EESSI_ACCELERATOR_TARGET} ] && [ ${EESSI_ACCELERATOR_TARGET} != "None" ]; then
                   module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
                   easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml
               fi

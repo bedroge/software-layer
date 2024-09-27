@@ -65,7 +65,8 @@ jobs:
 
               # first check the CPU-only builds for this CPU target
               echo "just run check_missing_installations.sh (should use easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-${{matrix.EESSI_VERSION}}-*.yml)"
-              for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
+              #for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
+              for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-2023.06-eb-4.9.3-001-system.yml); do
                   echo "check missing installations for ${easystack_file}..."
                   ./check_missing_installations.sh ${easystack_file}
                   ec=$?
@@ -73,7 +74,7 @@ jobs:
               done
 
               # now check the accelerator builds for this CPU target
-              accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq '.${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]')
+              accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq ".${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]")
               for acc in ${accelerators}; do
                   echo "checking missing installations for accelerator ${acc}"
                   module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}

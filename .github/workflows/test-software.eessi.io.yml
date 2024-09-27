@@ -78,7 +78,7 @@ jobs:
               for acc in ${accelerators}; do
                   echo "checking missing installations for accelerator ${acc}"
                   module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}/modules/all
-                  for easystack_file in $(ls easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
+                  for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
                       echo "check missing installations for ${easystack_file}..."
                       ./check_missing_installations.sh ${easystack_file}
                       ec=$?

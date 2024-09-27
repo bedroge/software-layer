@@ -8,6 +8,19 @@ on:
   workflow_dispatch:
 permissions:
   contents: read # to fetch code (actions/checkout)
+env
+  EESSI_ACCELERATOR_TARGETS: |
+    aarch64/generic:
+    aarch64/neoverse_n1:
+    aarch64/neoverse_v1:
+    x86_64/generic:
+    x86_64/amd/zen2:
+      - cc80
+    x86_64/amd/zen3:
+      - cc80
+    x86_64/amd/zen4:
+    x86_64/intel/haswell:
+    x86_64/intel/skylake_avx512:
 jobs:
   check_missing:
     runs-on: ubuntu-latest
@@ -25,13 +38,6 @@ jobs:
         - x86_64/intel/haswell
         - x86_64/intel/skylake_avx512
         - x86_64/generic
-        EESSI_ACCELERATOR_TARGET:
-        - None
-        include:
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen2
-          EESSI_ACCELERATOR_TARGET: nvidia/cc80
-        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen3
-          EESSI_ACCELERATOR_TARGET: nvidia/cc80
     steps:
         - name: Check out software-layer repository
           uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -46,13 +52,7 @@ jobs:
         - name: Test check_missing_installations.sh script
           run: |
               export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
-              export EESSI_ACCELERATOR_TARGET=${{matrix.EESSI_ACCELERATOR_TARGET}}
               source /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/init/bash
-              easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml
-              if [ ! -z ${EESSI_ACCELERATOR_TARGET} ] && [ ${EESSI_ACCELERATOR_TARGET} != "None" ]; then
-                  module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
-                  easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml
-              fi
               # set $EESSI_CPU_FAMILY to the CPU architecture that corresponds to $EESSI_SOFTWARE_SUBDIR_OVERRIDE (part before the first slash),
               # to prevent issues with checks in the Easybuild configuration that use this variable
               export EESSI_CPU_FAMILY=${EESSI_SOFTWARE_SUBDIR_OVERRIDE%%/*}
@@ -70,6 +70,19 @@ jobs:
                   ./check_missing_installations.sh ${easystack_file}
                   ec=$?
                   if [[ ${ec} -ne 0 ]]; then echo "missing installations found for ${easystack_file}!" >&2; exit ${ec}; fi
+              done
+
+              # now check the accelerator builds for this CPU target
+              accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq '.${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]')
+              for acc in ${accelerators}; do
+                  echo "checking missing installations for accelerator ${acc}"
+                  module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
+                  for easystack_file in $(ls easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
+                      echo "check missing installations for ${easystack_file}..."
+                      ./check_missing_installations.sh ${easystack_file}
+                      ec=$?
+                      if [[ ${ec} -ne 0 ]]; then echo "missing installations found for ${easystack_file}!" >&2; exit ${ec}; fi
+                  done
               done
 
         - name: Test check_missing_installations.sh with missing package (GCC/8.3.0)

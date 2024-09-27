@@ -75,16 +75,16 @@ jobs:
 
               # now check the accelerator builds for this CPU target
               accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq ".${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]")
-              for acc in ${accelerators}; do
-                  module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}/modules/all
-                  echo "checking missing installations for accelerator ${acc} using modulepath: ${MODULEPATH}"
+              for accel in ${accelerators}; do
+                  module use ${EESSI_SOFTWARE_PATH}/accel/${accel}/modules/all
+                  echo "checking missing installations for accelerator ${accel} using modulepath: ${MODULEPATH}"
                   for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
                       echo "check missing installations for ${easystack_file}..."
                       ./check_missing_installations.sh ${easystack_file}
                       ec=$?
                       if [[ ${ec} -ne 0 ]]; then echo "missing installations found for ${easystack_file}!" >&2; exit ${ec}; fi
                   done
-                  module unuse ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
+                  module unuse ${EESSI_SOFTWARE_PATH}/accel/${accel}/modules/all
               done
 
         - name: Test check_missing_installations.sh with missing package (GCC/8.3.0)

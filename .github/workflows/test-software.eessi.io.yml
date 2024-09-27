@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read # to fetch code (actions/checkout)
-env
+env:
   EESSI_ACCELERATOR_TARGETS: |
     aarch64/generic:
     aarch64/neoverse_n1:

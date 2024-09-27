@@ -76,8 +76,8 @@ jobs:
               # now check the accelerator builds for this CPU target
               accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq ".${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]")
               for acc in ${accelerators}; do
-                  echo "checking missing installations for accelerator ${acc}"
                   module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}/modules/all
+                  echo "checking missing installations for accelerator ${acc} using modulepath: ${MODULEPATH}"
                   for easystack_file in $(ls easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
                       echo "check missing installations for ${easystack_file}..."
                       ./check_missing_installations.sh ${easystack_file}

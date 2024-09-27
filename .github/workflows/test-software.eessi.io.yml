@@ -15,9 +15,9 @@ env:
     aarch64/neoverse_v1:
     x86_64/generic:
     x86_64/amd/zen2:
-      - cc80
+      - nvidia/cc80
     x86_64/amd/zen3:
-      - cc80
+      - nvidia/cc80
     x86_64/amd/zen4:
     x86_64/intel/haswell:
     x86_64/intel/skylake_avx512:
@@ -77,7 +77,7 @@ jobs:
               accelerators=$(echo "${EESSI_ACCELERATOR_TARGETS}" | yq ".${EESSI_SOFTWARE_SUBDIR_OVERRIDE}[]")
               for acc in ${accelerators}; do
                   echo "checking missing installations for accelerator ${acc}"
-                  module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
+                  module use ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}/modules/all
                   for easystack_file in $(ls easystacks=easystacks/software.eessi.io/${{matrix.EESSI_VERSION}}/accel/nvidia/eessi-${{matrix.EESSI_VERSION}}-eb-*.yml); do
                       echo "check missing installations for ${easystack_file}..."
                       ./check_missing_installations.sh ${easystack_file}

@@ -83,6 +83,7 @@ jobs:
                       ec=$?
                       if [[ ${ec} -ne 0 ]]; then echo "missing installations found for ${easystack_file}!" >&2; exit ${ec}; fi
                   done
+                  module unuse ${EESSI_SOFTWARE_PATH}/accel/${EESSI_ACCELERATOR_TARGET}
               done
 
         - name: Test check_missing_installations.sh with missing package (GCC/8.3.0)

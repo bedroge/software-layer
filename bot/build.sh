@@ -233,9 +233,16 @@ else
     REMOVAL_STEP_ARGS+=("--save" "${TARBALL_TMP_REMOVAL_STEP_DIR}")
     REMOVAL_STEP_ARGS+=("--storage" "${STORAGE}")
 
-    # add fakeroot option in order to be able to remove software, see:
-    # https://github.com/EESSI/software-layer/issues/312
-    REMOVAL_STEP_ARGS+=("--fakeroot")
+    if [[ -d /cvmfs/${REPOSITORY_NAME} ]]; then
+        REMOVAL_SCRIPT_ARGS+=("--dryrun")
+    elif grep -q 'CONFIG_USER_NS=y' /boot/config-$(uname -r); then
+        # add fakeroot option in order to be able to remove software, see:
+        # https://github.com/EESSI/software-layer/issues/312
+        REMOVAL_STEP_ARGS+=("--fakeroot")
+    else
+        #ERROR!
+        exit 1
+    fi
 
     # create tmp file for output of removal step
     removal_outerr=$(mktemp remove.outerr.XXXX)
@@ -250,6 +257,21 @@ else
     # this is important, as otherwise the removed software will still be there
     REMOVAL_TMPDIR=$(grep ' as tmp directory ' ${removal_outerr} | cut -d ' ' -f 2)
     BUILD_STEP_ARGS+=("--resume" "${REMOVAL_TMPDIR}")
+
+    if [[ -d /cvmfs/${REPOSITORY_NAME} ]]; then
+        remove_sw_dirs=$(grep "^TO BE REMOVED: " ${removal_outerr} | sed 's/TO BE REMOVED: //')
+        bind_mounts_sw_dirs=""
+        for swdir in $remove_sw_dirs; do
+            overlay_swdir=${STORAGE}/${REPOSITORY_NAME}/overlay-upper/${swdir#/cvmfs/${REPOSITORY_NAME}/}
+            mkdir -p ${overlay_swdir}
+            if [[ -z ${bind_mounts_sw_dirs} ]]; then
+                bind_mounts_sw_dirs="${overlay_swdir:${swdir}"
+            else
+                bind_mounts_sw_dirs="${overlay_swdir:${swdir}:${bind_mounts_sw_dirs}"
+            fi
+        done
+        BUILD_STEP_ARGS+=("--extra-bind-paths" "${bind_mounts_sw_dirs}")
+    fi
 fi
 
 # prepare directory to store tarball of tmp for build step

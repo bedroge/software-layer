@@ -308,8 +308,8 @@ fi
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
     # split into name and access mode if ',access=' in $cvmfs_repo
-    if [[ ${cvmfs_repo} == *",access="* ]] ; then
-        cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode specification
+    if [[ ${cvmfs_repo} == *","* ]] ; then
+        cvmfs_repo_name=${cvmfs_repo/,*/} # remove access mode specification
     else
         cvmfs_repo_name="${cvmfs_repo}"
     fi
@@ -322,7 +322,7 @@ done
 declare -A listed_repos=()
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
-    cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode
+    cvmfs_repo_name=${cvmfs_repo/,*/} # remove access mode
     [[ ${VERBOSE} -eq 1 ]] && echo "checking for duplicates: '${cvmfs_repo}' and '${cvmfs_repo_name}'"
     # if cvmfs_repo_name is not in eessi_cvmfs_repos, assume it's in cfg_cvmfs_repos
     #   and obtain actual repo_name from config
@@ -748,13 +748,20 @@ do
     unset cfg_repo_id
     [[ ${VERBOSE} -eq 1 ]] && echo "add fusemount options for CVMFS repo '${cvmfs_repo}'"
     # split into name and access mode if ',access=' in $cvmfs_repo
-    if [[ ${cvmfs_repo} == *",access="* ]] ; then
-        cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode specification
-        cvmfs_repo_access=${cvmfs_repo/*,access=/} # remove repo name part
-    else
-        cvmfs_repo_name="${cvmfs_repo}"
-        cvmfs_repo_access="${ACCESS}" # use globally defined access mode
-    fi
+    #IFS=',' read -r -a array <<< "$cvmfs_repo"
+    readarray -td, cvmfs_repo_args <<<"$cvmfs_repo"
+    cvmfs_repo_name=${cvmfs_repo_args[0]}
+    cvmfs_repo_access="${ACCESS}"
+    cvmfs_repo_mount="fuse"
+    for arg in ${cvmfs_repo_args[@]:1}; do
+        if [[ $arg == "access="* ]]; then
+            cvmfs_repo_access=${arg/access=}
+        fi
+        if [[ $arg == "mount="* ]]; then
+            cvmfs_repo_mount=${arg/mount=}
+        fi
+    done
+
     # obtain cvmfs_repo_name from EESSI_REPOS_CFG_FILE if cvmfs_repo is in cfg_cvmfs_repos
     if [[ ${cfg_cvmfs_repos[${cvmfs_repo_name}]} ]]; then
         [[ ${VERBOSE} -eq 1 ]] && echo "repo '${cvmfs_repo_name}' is not an EESSI CVMFS repository..."
@@ -769,74 +776,82 @@ do
     # always create a directory for the repository (e.g., to store settings, ...)
     mkdir -p ${EESSI_TMPDIR}/${cvmfs_repo_name}
 
-    # add fusemount options depending on requested access mode ('ro' - read-only; 'rw' - read & write)
-    if [[ ${cvmfs_repo_access} == "ro" ]] ; then
-        # need to distinguish between basic "ro" access and "ro" after a "rw" session
-        if [[ -d ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper ]]; then
-            # the overlay-upper directory is only created in a read-write-session, thus
-            # we are resuming from such a session here (otherwise there shouldn't be such
-            # directory yet as it is only created for read-write-sessions a bit further
-            # below); the overlay-upper directory can only exist because it is part of
-            # the ${RESUME} directory or tarball
-            # to be able to see the contents of the read-write session we have to mount
-            # the fuse-overlayfs (in read-only mode) on top of the CernVM-FS repository
+    if [[ ${cvmfs_repo_mount} == "fuse" ]]; then
+        # add fusemount options depending on requested access mode ('ro' - read-only; 'rw' - read & write)
+        if [[ ${cvmfs_repo_access} == "ro" ]] ; then
+            # need to distinguish between basic "ro" access and "ro" after a "rw" session
+            if [[ -d ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper ]]; then
+                # the overlay-upper directory is only created in a read-write-session, thus
+                # we are resuming from such a session here (otherwise there shouldn't be such
+                # directory yet as it is only created for read-write-sessions a bit further
+                # below); the overlay-upper directory can only exist because it is part of
+                # the ${RESUME} directory or tarball
+                # to be able to see the contents of the read-write session we have to mount
+                # the fuse-overlayfs (in read-only mode) on top of the CernVM-FS repository
 
-            echo "While processing '${cvmfs_repo_name}' to be mounted 'read-only' we detected an overlay-upper"
-            echo "  directory (${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper) likely from a previous"
-            echo "  session. Will use it as left-most directory in 'lowerdir' argument for fuse-overlayfs."
+                echo "While processing '${cvmfs_repo_name}' to be mounted 'read-only' we detected an overlay-upper"
+                echo "  directory (${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper) likely from a previous"
+                echo "  session. Will use it as left-most directory in 'lowerdir' argument for fuse-overlayfs."
 
-            # make the target CernVM-FS repository available under /cvmfs_ro
+                # make the target CernVM-FS repository available under /cvmfs_ro
+                export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
+
+                EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+
+                # now, put the overlay-upper read-only on top of the repo and make it available under the usual prefix /cvmfs
+                EESSI_READONLY_OVERLAY="container:fuse-overlayfs"
+                # The contents of the previous session are available under
+                #   ${EESSI_TMPDIR} which is bind mounted to ${TMP_IN_CONTAINER}.
+                #   Hence, we have to use ${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper
+                # the left-most directory given for the lowerdir argument is put on top,
+                #   and with no upperdir=... the whole overlayfs is made available read-only
+                EESSI_READONLY_OVERLAY+=" -o lowerdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper:/cvmfs_ro/${cvmfs_repo_name}"
+                EESSI_READONLY_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+                export EESSI_READONLY_OVERLAY
+
+                EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY_OVERLAY}")
+                export EESSI_FUSE_MOUNTS
+            else
+                # basic "ro" access that doesn't require any fuseoverlay-fs
+                echo "Mounting '${cvmfs_repo_name}' 'read-only' without fuse-overlayfs."
+
+                export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs/${cvmfs_repo_name}"
+
+                EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+                export EESSI_FUSE_MOUNTS
+            fi
+        elif [[ ${cvmfs_repo_access} == "rw" ]] ; then
+            # use repo-specific overlay directories
+            mkdir -p ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
+            mkdir -p ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-work${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
+
+            [[ ${VERBOSE} -eq 1 ]] && echo -e "TMP directory contents:\n$(ls -l ${EESSI_TMPDIR})"
+
+            # set environment variables for fuse mounts in Singularity container
             export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
 
             EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
 
-            # now, put the overlay-upper read-only on top of the repo and make it available under the usual prefix /cvmfs
-            EESSI_READONLY_OVERLAY="container:fuse-overlayfs"
-            # The contents of the previous session are available under
-            #   ${EESSI_TMPDIR} which is bind mounted to ${TMP_IN_CONTAINER}.
-            #   Hence, we have to use ${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper
-            # the left-most directory given for the lowerdir argument is put on top,
-            #   and with no upperdir=... the whole overlayfs is made available read-only
-            EESSI_READONLY_OVERLAY+=" -o lowerdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper:/cvmfs_ro/${cvmfs_repo_name}"
-            EESSI_READONLY_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
-            export EESSI_READONLY_OVERLAY
+            EESSI_WRITABLE_OVERLAY="container:fuse-overlayfs"
+            EESSI_WRITABLE_OVERLAY+=" -o lowerdir=/cvmfs_ro/${cvmfs_repo_name}"
+            EESSI_WRITABLE_OVERLAY+=" -o upperdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper"
+            EESSI_WRITABLE_OVERLAY+=" -o workdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-work"
+            EESSI_WRITABLE_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+            export EESSI_WRITABLE_OVERLAY
 
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY_OVERLAY}")
+            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_WRITABLE_OVERLAY}")
             export EESSI_FUSE_MOUNTS
         else
-            # basic "ro" access that doesn't require any fuseoverlay-fs
-            echo "Mounting '${cvmfs_repo_name}' 'read-only' without fuse-overlayfs."
-
-            export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs/${cvmfs_repo_name}"
-
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
-            export EESSI_FUSE_MOUNTS
+            echo -e "ERROR: access mode '${cvmfs_repo_access}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
+            exit ${REPOSITORY_ERROR_EXITCODE}
         fi
-    elif [[ ${cvmfs_repo_access} == "rw" ]] ; then
-        # use repo-specific overlay directories
-        mkdir -p ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
-        mkdir -p ${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-work${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
-
-        [[ ${VERBOSE} -eq 1 ]] && echo -e "TMP directory contents:\n$(ls -l ${EESSI_TMPDIR})"
-
-        # set environment variables for fuse mounts in Singularity container
-        export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
-
-        EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
-
-        EESSI_WRITABLE_OVERLAY="container:fuse-overlayfs"
-        EESSI_WRITABLE_OVERLAY+=" -o lowerdir=/cvmfs_ro/${cvmfs_repo_name}"
-        EESSI_WRITABLE_OVERLAY+=" -o upperdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper"
-        EESSI_WRITABLE_OVERLAY+=" -o workdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-work"
-        EESSI_WRITABLE_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
-        export EESSI_WRITABLE_OVERLAY
-
-        EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_WRITABLE_OVERLAY}")
-        export EESSI_FUSE_MOUNTS
+    elif [[ ${cvmfs_repo_mount} == "bind" ]]; then
+        BIND_PATHS="/cvmfs/${cvmfs_repo_name},${BIND_PATHS}"
     else
-        echo -e "ERROR: access mode '${cvmfs_repo_access}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
+        echo -e "ERROR: mount type '${cvmfs_repo_mount}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
         exit ${REPOSITORY_ERROR_EXITCODE}
     fi
+
     # create repo_settings.sh file in ${EESSI_TMPDIR}/${cvmfs_repo_name} to store
     #   (intention is that the file could be just sourced to obtain the settings)
     # repo_name = ${cvmfs_repo_name}
@@ -848,6 +863,7 @@ do
     settings="${settings}repo_name = ${cvmfs_repo_name}\n"
     settings="${settings}repo_id = ${cfg_repo_id}\n"
     settings="${settings}repo_access = ${cvmfs_repo_access}\n"
+    settings="${settings}repo_mount = ${cvmfs_repo_mount}\n"
     # TODO iterate over host_injections (first need means to define them (globally and/or per repository)
     # settings="${settings}repo_host_injections = ${host_injections}\n"
     echo -e "${settings}" > ${EESSI_TMPDIR}/${cvmfs_repo_name}/repo_settings.sh

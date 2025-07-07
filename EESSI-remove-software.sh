@@ -8,6 +8,7 @@
 
 display_help() {
   echo "usage: $0 [OPTIONS]"
+  echo "  -d | --dry-run"
   echo "  -g | --generic         -  instructs script to build for generic architecture target"
   echo "  -h | --help            -  display this usage information"
 }
@@ -16,6 +17,10 @@ POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    -n|--dryrun)
+      DRYRUN=1
+      shift
+      ;;
     -g|--generic)
       DETECTION_PARAMETERS="--generic"
       shift
@@ -101,7 +106,7 @@ fi
 pr_diff=$(ls [0-9]*.diff | head -1)
 
 # if this script is run as root, use PR patch file to determine if software needs to be removed first
-if [ $EUID -eq 0 ]; then
+if [[ $EUID -eq 0 ]] || [[ $DRYRUN -eq 1 ]]; then
     changed_easystacks_rebuilds=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing' | grep "/rebuilds/")
     if [ -z ${changed_easystacks_rebuilds} ]; then
         echo "No software needs to be removed."
@@ -130,16 +135,20 @@ if [ $EUID -eq 0 ]; then
                     app_dir=${app_installprefix}/software/${app}
                     app_subdirs=$(find ${app_dir} -mindepth 1 -maxdepth 1 -type d)
                     app_module=${app_installprefix}/modules/all/${app}.lua
-                    echo_yellow "Removing ${app_dir} and ${app_module}..."
-                    rm -rf ${app_dir}
-                    rm -rf ${app_module}
-                    # recreate the installation directory and do an ls on the first-level subdirectories to work around
-                    # permission issues when reinstalling the application (see https://github.com/EESSI/software-layer/issues/556)
-                    echo_yellow "Recreating an empty ${app_dir}..."
-                    mkdir -p ${app_dir}
-                    # these subdirs don't (and shouldn't) exist, but we need to do the ls anyway as a workaround,
-                    # so redirect to /dev/null and ignore the exit code
-                    ls ${app_subdirs} >& /dev/null || true
+                    if [[ $DRYRUN -eq 1 ]]; then
+                        echo "TO BE REMOVED: ${app_dir}"
+                    else
+                        echo_yellow "Removing ${app_dir} and ${app_module}..."
+                        rm -rf ${app_dir}
+                        rm -rf ${app_module}
+                        # recreate the installation directory and do an ls on the first-level subdirectories to work around
+                        # permission issues when reinstalling the application (see https://github.com/EESSI/software-layer/issues/556)
+                        echo_yellow "Recreating an empty ${app_dir}..."
+                        mkdir -p ${app_dir}
+                        # these subdirs don't (and shouldn't) exist, but we need to do the ls anyway as a workaround,
+                        # so redirect to /dev/null and ignore the exit code
+                        ls ${app_subdirs} >& /dev/null || true
+                    fi
                 done
             else
                 fatal_error "Easystack file ${easystack_file} not found!"

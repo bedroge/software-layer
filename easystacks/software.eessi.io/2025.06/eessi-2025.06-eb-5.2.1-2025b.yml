@@ -1,2 +1,6 @@
 easyconfigs:
   - BCFtools-1.22-GCC-14.3.0.eb
+  - STREAmS-2.1.0-foss-2025b.eb:
+      options:
+        # See https://github.com/easybuilders/easybuild-easyconfigs/pull/25219
+        from-commit: fcd07f47fdcba3ec3dc0feb271045e9feb359b08

@@ -72,9 +72,13 @@ easyconfigs:
   - /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/SWIG/4.2.1-GCCcore-13.3.0/20251108_233215UTC/easybuild/SWIG-4.2.1-GCCcore-13.3.0.eb:
       options:
         include-easyblocks: /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/SWIG/4.2.1-GCCcore-13.3.0/20251108_233215UTC/easybuild/reprod/easyblocks/*.py
-  - /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/GDAL/3.10.0-foss-2024a/20251109_003402UTC/easybuild/GDAL-3.10.0-foss-2024a.eb:
+# Due to a rebuild of EB 5.1.2, we have to use an updated easyconfig for GDAL
+#  - /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/GDAL/3.10.0-foss-2024a/20251109_003402UTC/easybuild/GDAL-3.10.0-foss-2024a.eb:
+  - GDAL-3.10.0-foss-2024a.eb:
       options:
         include-easyblocks: /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/GDAL/3.10.0-foss-2024a/20251109_003402UTC/easybuild/reprod/easyblocks/*.py
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/24883
+        from-commit: d05864cde6af0ffcab05444c1ede7f9fe4cdde41
   - /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/MPFR/4.2.1-GCCcore-13.3.0/20251109_004303UTC/easybuild/MPFR-4.2.1-GCCcore-13.3.0.eb:
       options:
         include-easyblocks: /cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod/MPFR/4.2.1-GCCcore-13.3.0/20251109_004303UTC/easybuild/reprod/easyblocks/*.py
